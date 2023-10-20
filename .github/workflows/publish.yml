@@ -28,9 +28,9 @@ jobs:
       run: pnpm run build # replace with your build command if different
 
     - name: Publish to NPM
-    env:
+      env:
         NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       run: |
-      npm config set "//registry.npmjs.org/:_authToken" "$NPM_TOKEN"
-      pnpm publish --access public
+        npm config set "//registry.npmjs.org/:_authToken" "$NPM_TOKEN"
+        pnpm publish --access public
 
