@@ -38,6 +38,8 @@ jobs:
 
     - name: Build
       run: pnpm run build # replace with your build command if different
+      env:
+        NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
     - name: Publish to NPM
       env:
