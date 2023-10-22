@@ -1,14 +1,13 @@
-// tests/restExchange.spec.ts
-
 import {
-  restExchange,
   hasRestDirective,
   getRestDirective,
   addTypename,
   getTypeFromQuery,
 } from './restExchange';
 import { DocumentNode, parse } from 'graphql';
-import { vi, expect, it, describe } from 'vitest';
+import { expect, it, describe } from 'vitest';
+
+type Result = { [index: string]: any };
 
 describe('restExchange', () => {
   describe('hasRestDirective', () => {
@@ -98,7 +97,7 @@ describe('restExchange', () => {
           }
         }
       `);
-      const mockData = { id: 1, name: 'Alice' };
+      const mockData: Result = { id: 1, name: 'Alice' };
       addTypename(mockData, 'User', mockQuery);
       expect(mockData.__typename).toBe('User');
     });
@@ -116,7 +115,7 @@ describe('restExchange', () => {
             }
           }
         `);
-      const mockData = {
+      const mockData: Result = {
         id: 1,
         name: 'Alice',
         address: { city: 'Wonderland', country: 'Fantasy' },
@@ -129,12 +128,13 @@ describe('restExchange', () => {
       const mockQuery: DocumentNode = parse(`
           query {
             users @rest(type: "[User]", path: "/users") {
+            __typename
               id
               name
             }
           }
         `);
-      const mockData = [
+      const mockData: Result = [
         { id: 1, name: 'Alice' },
         { id: 2, name: 'Bob' },
       ];
@@ -160,7 +160,7 @@ describe('restExchange', () => {
             }
           }
         `);
-      const mockData = {
+      const mockData: Result = {
         id: 1,
         name: 'Alice',
         address: {
