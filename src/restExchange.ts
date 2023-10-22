@@ -87,7 +87,7 @@ export const restExchange =
     };
   };
 
-const hasRestDirective = (query: DocumentNode): boolean => {
+export const hasRestDirective = (query: DocumentNode): boolean => {
   for (const def of query.definitions) {
     if (def.kind !== 'OperationDefinition') continue;
     for (const sel of def.selectionSet.selections) {
@@ -99,7 +99,7 @@ const hasRestDirective = (query: DocumentNode): boolean => {
   return false;
 };
 
-const executeRestRequest = async (
+export const executeRestRequest = async (
   operation: Operation,
   options: RestExchangeOptions
 ) => {
@@ -200,7 +200,7 @@ const executeRestRequest = async (
   }
 };
 
-const addTypename = (
+export const addTypename = (
   data: any,
   typename: string | null,
   query: DocumentNode
@@ -232,7 +232,7 @@ const addTypename = (
   }
 };
 
-const getTypeDirectiveForField = (
+export const getTypeDirectiveForField = (
   selectionSet: SelectionSetNode,
   fieldName: string
 ): string | null => {
@@ -268,7 +268,7 @@ const getTypeDirectiveForField = (
   return null;
 };
 
-const getTypeFromQuery = (
+export const getTypeFromQuery = (
   query: DocumentNode,
   fieldName: string
 ): string | null => {
@@ -282,7 +282,7 @@ const getTypeFromQuery = (
   return null;
 };
 
-const omitExtraFields = (data: any, query: DocumentNode) => {
+export const omitExtraFields = (data: any, query: DocumentNode) => {
   const requestedFields: RequestedFieldsMap = getRequestedFields(query);
 
   function filterData(data: any, fields: RequestedFieldsMap): any {
@@ -304,7 +304,7 @@ const omitExtraFields = (data: any, query: DocumentNode) => {
   return filterData(data, requestedFields);
 };
 
-const getRequestedFields = (query: DocumentNode): FieldMap => {
+export const getRequestedFields = (query: DocumentNode): FieldMap => {
   const fields: FieldMap = {};
 
   const collectFields = (selectionSet: any) => {
@@ -321,7 +321,6 @@ const getRequestedFields = (query: DocumentNode): FieldMap => {
           selection.selectionSet
         );
       }
-      // If using fragments, handle them with 'FragmentSpread' or 'InlineFragment' cases
     }
     return currentFields;
   };
@@ -335,7 +334,7 @@ const getRequestedFields = (query: DocumentNode): FieldMap => {
   return fields;
 };
 
-const getRestDirective = (query: any): RestDirective | null => {
+export const getRestDirective = (query: any): RestDirective | null => {
   for (const def of query.definitions) {
     if (def.kind !== 'OperationDefinition') continue;
     for (const sel of def.selectionSet.selections) {
@@ -354,7 +353,7 @@ const getRestDirective = (query: any): RestDirective | null => {
   return null;
 };
 
-const replaceParam = (
+export const replaceParam = (
   endpoint: string,
   name: string,
   value: string
@@ -365,7 +364,7 @@ const replaceParam = (
   return endpoint.replace(`:${name}`, value);
 };
 
-const pathBuilder = (path: string, variables): string => {
+export const pathBuilder = (path: string, variables): string => {
   const pathWithParams = Object.keys(variables).reduce(
     (acc, e) => replaceParam(acc, e, variables[e]),
     path
@@ -378,7 +377,7 @@ const pathBuilder = (path: string, variables): string => {
   return pathWithParams;
 };
 
-const validateRequestMethodForOperationType = (
+export const validateRequestMethodForOperationType = (
   method: string,
   operationType: OperationType
 ) => {
@@ -402,7 +401,7 @@ const validateRequestMethodForOperationType = (
   }
 };
 
-const getURIFromEndpoints = (endpoints: Endpoints, endpoint?: Endpoint) => {
+export const getURIFromEndpoints = (endpoints: Endpoints, endpoint?: Endpoint) => {
   return (
     endpoints[endpoint || DEFAULT_ENDPOINT_KEY] ||
     endpoints[DEFAULT_ENDPOINT_KEY]
