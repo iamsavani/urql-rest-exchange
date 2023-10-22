@@ -17,7 +17,6 @@ import { expect, it, describe } from 'vitest';
 
 type Result = { [index: string]: any };
 
-
 describe('restExchange', () => {
   describe('hasRestDirective', () => {
     it('should return true if the query has a @rest directive', () => {
@@ -329,10 +328,7 @@ describe('restExchange', () => {
       expect(
         getTypeDirectiveForField(
           mockQuery,
-          (
-            mockQuery.definitions[0].selectionSet
-              .selections[0] as FragmentDefinitionNode
-          ).selectionSet,
+          mockQuery.definitions[0]['selectionSet'].selections[0].selectionSet,
           'user'
         )
       ).toBe('UserInner');
@@ -506,9 +502,8 @@ describe('restExchange', () => {
             }
           }
         `);
-      const friendSelectionSet = (
-        mockQuery.definitions[0] as FragmentDefinitionNode
-      ).selectionSet.selections[0].selectionSet;
+      const friendSelectionSet =
+        mockQuery.definitions[0]['selectionSet'].selections[0].selectionSet;
       expect(
         getTypeDirectiveForField(mockQuery, friendSelectionSet, 'user')
       ).toBe('UserInner');

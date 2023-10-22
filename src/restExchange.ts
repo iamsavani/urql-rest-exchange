@@ -295,7 +295,7 @@ export const getTypeDirectiveForField = (
       if (fragment) {
         const nestedResult = getTypeDirectiveForField(
           query,
-          fragment.selectionSet,
+          fragment['selectionSet'],
           fieldName
         );
         if (nestedResult) return nestedResult;
