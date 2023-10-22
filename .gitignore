@@ -1,0 +1,15 @@
+/.idea
+/.vscode
+**/node_modules
+*.log
+.husky
+dist/
+build/
+coverage/
+package-lock.json
+.DS_Store
+.next
+pnpm-lock.yaml
+package-lock.json
+/yarn.lock
+.npmrc
