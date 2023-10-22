@@ -23,7 +23,8 @@
     "lint": "eslint --ext=js,jsx,ts,tsx .",
     "build": "rollup -c ./scripts/config.mjs",
     "prepublishOnly": "run-s clean build",
-    "changeset:publish": "changeset publish"
+    "changeset:publish": "changeset publish",
+    "changeset:version": "changeset version"
   },
   "repository": {
     "type": "git",
