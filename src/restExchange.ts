@@ -12,6 +12,7 @@ import {
   type DocumentNode,
   OperationTypeNode,
   type SelectionSetNode,
+  FragmentDefinitionNode,
 } from 'graphql';
 
 export type InitializationHeaders = Headers | string[][];
@@ -87,7 +88,7 @@ export const restExchange =
     };
   };
 
-const hasRestDirective = (query: DocumentNode): boolean => {
+export const hasRestDirective = (query: DocumentNode): boolean => {
   for (const def of query.definitions) {
     if (def.kind !== 'OperationDefinition') continue;
     for (const sel of def.selectionSet.selections) {
@@ -99,13 +100,33 @@ const hasRestDirective = (query: DocumentNode): boolean => {
   return false;
 };
 
-const executeRestRequest = async (
+export const executeRestRequest = async (
   operation: Operation,
   options: RestExchangeOptions
 ) => {
   try {
     const { variables, kind, query } = operation;
-    const { endpoints, bodySerializers } = options;
+    const { endpoints, bodySerializers, uri } = options;
+    if (uri == null && endpoints == null) {
+      throw new Error(
+        'A RestLink must be initialized with either 1 uri, or a map of keyed-endpoints'
+      );
+    }
+    if (uri != null) {
+      const currentDefaultURI = (endpoints || {})[DEFAULT_ENDPOINT_KEY];
+      if (currentDefaultURI != null && currentDefaultURI != uri) {
+        throw new Error(
+          "RestLink was configured with a default uri that doesn't match what's passed in to the endpoints map."
+        );
+      }
+      endpoints[DEFAULT_ENDPOINT_KEY] = uri;
+    }
+
+    if (endpoints[DEFAULT_ENDPOINT_KEY] == null) {
+      console.warn(
+        'RestLink configured without a default URI. All @rest(…) directives must provide an endpoint key!'
+      );
+    }
     const serializers: Serializers = {
       [DEFAULT_SERIALIZER_KEY]: DEFAULT_JSON_SERIALIZER,
       ...(bodySerializers || {}),
@@ -114,9 +135,9 @@ const executeRestRequest = async (
     if (!restDirective) throw new Error('No @rest directive found');
     let { endpoint, path, bodyKey, method, type, bodySerializer } =
       restDirective;
-    const uri = getURIFromEndpoints(endpoints, endpoint);
+    const fetchURI = getURIFromEndpoints(endpoints, endpoint);
 
-    if (!uri) {
+    if (!fetchURI) {
       throw new Error('URL endpoint not defined');
     }
     const fetchOptions =
@@ -154,7 +175,7 @@ const executeRestRequest = async (
     }
 
     validateRequestMethodForOperationType(method, kind);
-    const url = `${uri}${pathWithParams}`;
+    const url = `${fetchURI}${pathWithParams}`;
     const response = await fetch(url, {
       method,
       body,
@@ -200,7 +221,7 @@ const executeRestRequest = async (
   }
 };
 
-const addTypename = (
+export const addTypename = (
   data: any,
   typename: string | null,
   query: DocumentNode
@@ -232,32 +253,56 @@ const addTypename = (
   }
 };
 
-const getTypeDirectiveForField = (
+export const getTypeDirectiveForField = (
+  query: DocumentNode,
   selectionSet: SelectionSetNode,
   fieldName: string
 ): string | null => {
   // Look through all selections in the selection set
   for (const selection of selectionSet.selections) {
-    if (selection.kind !== 'Field') continue;
-
-    // If the field's name matches our target field
-    if (selection.name.value === fieldName) {
-      // Check for directives on this field
-      for (const directive of selection.directives || []) {
-        if (directive.name.value === 'type') {
-          const argument = directive.arguments?.find(
-            arg => arg.name.value === 'name'
-          );
-          if (argument && argument.value.kind === 'StringValue') {
-            return argument.value.value;
+    if (selection.kind === 'Field') {
+      // If the field's name matches our target field
+      if (selection.name.value === fieldName) {
+        // Check for directives on this field
+        for (const directive of selection.directives || []) {
+          if (directive.name.value === 'type') {
+            const argument = directive.arguments?.find(
+              arg => arg.name.value === 'name'
+            );
+            if (argument && argument.value.kind === 'StringValue') {
+              return argument.value.value;
+            }
           }
         }
       }
-    }
 
-    // If the field has a nested selection set, search recursively inside it
-    if (selection.selectionSet) {
+      // If the field has a nested selection set, search recursively inside it
+      if (selection.selectionSet) {
+        const nestedResult = getTypeDirectiveForField(
+          query,
+          selection.selectionSet,
+          fieldName
+        );
+        if (nestedResult) return nestedResult;
+      }
+    } else if (selection.kind === 'FragmentSpread') {
+      const fragment = query.definitions.find(
+        def =>
+          def.kind === 'FragmentDefinition' &&
+          def.name.value === selection.name.value
+      );
+
+      if (fragment) {
+        const nestedResult = getTypeDirectiveForField(
+          query,
+          fragment['selectionSet'],
+          fieldName
+        );
+        if (nestedResult) return nestedResult;
+      }
+    } else if (selection.kind === 'InlineFragment') {
       const nestedResult = getTypeDirectiveForField(
+        query,
         selection.selectionSet,
         fieldName
       );
@@ -268,21 +313,25 @@ const getTypeDirectiveForField = (
   return null;
 };
 
-const getTypeFromQuery = (
+export const getTypeFromQuery = (
   query: DocumentNode,
   fieldName: string
 ): string | null => {
   for (const definition of query.definitions) {
     if (definition.kind !== 'OperationDefinition') continue;
 
-    const result = getTypeDirectiveForField(definition.selectionSet, fieldName);
+    const result = getTypeDirectiveForField(
+      query,
+      definition.selectionSet,
+      fieldName
+    );
     if (result) return result;
   }
 
   return null;
 };
 
-const omitExtraFields = (data: any, query: DocumentNode) => {
+export const omitExtraFields = (data: any, query: DocumentNode) => {
   const requestedFields: RequestedFieldsMap = getRequestedFields(query);
 
   function filterData(data: any, fields: RequestedFieldsMap): any {
@@ -304,10 +353,12 @@ const omitExtraFields = (data: any, query: DocumentNode) => {
   return filterData(data, requestedFields);
 };
 
-const getRequestedFields = (query: DocumentNode): FieldMap => {
+export const getRequestedFields = (query: DocumentNode): FieldMap => {
   const fields: FieldMap = {};
 
-  const collectFields = (selectionSet: any) => {
+  const collectFields = (
+    selectionSet: SelectionSetNode | undefined
+  ): FieldMap => {
     const currentFields: FieldMap = {};
 
     if (!selectionSet) {
@@ -316,13 +367,24 @@ const getRequestedFields = (query: DocumentNode): FieldMap => {
 
     for (const selection of selectionSet.selections) {
       if (selection.kind === 'Field') {
-        // Collect current field and any sub-fields
         currentFields[selection.name.value] = collectFields(
           selection.selectionSet
         );
+      } else if (selection.kind === 'FragmentSpread') {
+        const fragment = query.definitions.find(
+          def =>
+            def.kind === 'FragmentDefinition' &&
+            def.name.value === selection.name.value
+        ) as FragmentDefinitionNode | undefined;
+
+        if (fragment) {
+          Object.assign(currentFields, collectFields(fragment.selectionSet));
+        }
+      } else if (selection.kind === 'InlineFragment') {
+        Object.assign(currentFields, collectFields(selection.selectionSet));
       }
-      // If using fragments, handle them with 'FragmentSpread' or 'InlineFragment' cases
     }
+
     return currentFields;
   };
 
@@ -335,7 +397,7 @@ const getRequestedFields = (query: DocumentNode): FieldMap => {
   return fields;
 };
 
-const getRestDirective = (query: any): RestDirective | null => {
+export const getRestDirective = (query: any): RestDirective | null => {
   for (const def of query.definitions) {
     if (def.kind !== 'OperationDefinition') continue;
     for (const sel of def.selectionSet.selections) {
@@ -354,18 +416,20 @@ const getRestDirective = (query: any): RestDirective | null => {
   return null;
 };
 
-const replaceParam = (
+export const replaceParam = (
   endpoint: string,
-  name: string,
-  value: string
+  name: string | undefined,
+  value: string | undefined
 ): string => {
   if (value === undefined || name === undefined) {
     return endpoint;
   }
-  return endpoint.replace(`:${name}`, value);
+  // Use a global regex to replace all occurrences
+  const regex = new RegExp(`:${name}`, 'g');
+  return endpoint.replace(regex, value);
 };
 
-const pathBuilder = (path: string, variables): string => {
+export const pathBuilder = (path: string, variables): string => {
   const pathWithParams = Object.keys(variables).reduce(
     (acc, e) => replaceParam(acc, e, variables[e]),
     path
@@ -378,7 +442,7 @@ const pathBuilder = (path: string, variables): string => {
   return pathWithParams;
 };
 
-const validateRequestMethodForOperationType = (
+export const validateRequestMethodForOperationType = (
   method: string,
   operationType: OperationType
 ) => {
@@ -402,7 +466,10 @@ const validateRequestMethodForOperationType = (
   }
 };
 
-const getURIFromEndpoints = (endpoints: Endpoints, endpoint?: Endpoint) => {
+export const getURIFromEndpoints = (
+  endpoints: Endpoints,
+  endpoint?: Endpoint
+) => {
   return (
     endpoints[endpoint || DEFAULT_ENDPOINT_KEY] ||
     endpoints[DEFAULT_ENDPOINT_KEY]
