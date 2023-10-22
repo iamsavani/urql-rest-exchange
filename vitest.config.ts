@@ -6,6 +6,9 @@ export default defineConfig({
     globals: false,
     setupFiles: [resolve(__dirname, 'scripts/vitest.js')],
     clearMocks: true,
+    coverage: {
+      provider: 'v8', // or 'v8'
+    },
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
