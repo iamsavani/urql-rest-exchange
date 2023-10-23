@@ -45,6 +45,7 @@ jobs:
         id: changesets
         uses: changesets/action@v1.4.5
         with:
+          token: npm config set //registry.npmjs.org/:_authToken=$NPM_TOKEN
           version: pnpm changeset:version
           publish: pnpm changeset:publish
       - name: Publish Prerelease
