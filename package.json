@@ -1,6 +1,6 @@
 {
   "name": "urql-rest-exchange",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "description": "An exchange for REST services for URQL",
   "main": "dist/urql-rest-exchange",
   "module": "dist/urql-rest-exchange.mjs",
